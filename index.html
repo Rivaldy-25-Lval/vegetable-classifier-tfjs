@@ -3,460 +3,792 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vegetable Classifier - Neural Interface</title>
+    <title>EizVall4Ever - Neural Interface</title>
     
     <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <!-- Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=VT323&display=swap" rel="stylesheet">
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-            font-family: 'Orbitron', monospace;
-            color: white;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        
-        .glow-border {
-            box-shadow: 0 0 20px rgba(0, 209, 255, 0.5);
-            border: 2px solid #00d1ff;
-        }
-        
-        .glow-text {
-            text-shadow: 0 0 10px #00d1ff, 0 0 20px #00d1ff;
-        }
-        
-        .upload-zone {
-            border: 3px dashed #00d1ff;
-            transition: all 0.3s ease;
-        }
-        
-        .upload-zone:hover {
-            border-color: #00ff88;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
-        }
-        
-        .upload-zone.dragover {
-            background: rgba(0, 209, 255, 0.1);
-            border-color: #00ff88;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .loading-pulse {
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-        
-        @keyframes scan {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        
-        .scan-line {
-            animation: scan 2s linear infinite;
-        }
-        
-        .result-card {
-            background: linear-gradient(135deg, rgba(0, 209, 255, 0.1) 0%, rgba(0, 255, 136, 0.1) 100%);
-            border: 1px solid rgba(0, 209, 255, 0.3);
-            transition: all 0.3s ease;
-        }
-        
-        .result-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 209, 255, 0.3);
-        }
-        
-        .progress-bar {
-            height: 4px;
-            background: linear-gradient(90deg, #00d1ff, #00ff88);
-            transition: width 0.3s ease;
-        }
+        body { background-color: #020c1b; color: white; margin: 0; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #020c1b; }
+        ::-webkit-scrollbar-thumb { background: #00d1ff; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <div class="min-h-screen p-4 md:p-8">
-        <!-- Header -->
-        <div class="text-center mb-8 md:mb-12">
-            <h1 class="text-4xl md:text-6xl font-bold glow-text mb-4">
-                🥬 VEGETABLE CLASSIFIER
-            </h1>
-            <p class="text-lg md:text-xl text-cyan-300">
-                Powered by TensorFlow.js Neural Network
-            </p>
-            <div id="modelStatus" class="mt-4 text-sm loading-pulse">
-                ⚡ Initializing AI Model...
-            </div>
-        </div>
+    <div id="root"></div>
 
-        <!-- Main Container -->
-        <div class="max-w-6xl mx-auto">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                <!-- Upload Section -->
-                <div class="space-y-6">
-                    <div class="glow-border rounded-2xl p-6 bg-gray-900/50 backdrop-blur-sm">
-                        <h2 class="text-2xl font-bold mb-4 text-cyan-400">📤 Upload Image</h2>
-                        
-                        <!-- Upload Zone -->
-                        <div id="uploadZone" class="upload-zone rounded-xl p-12 text-center cursor-pointer">
-                            <div id="uploadContent">
-                                <svg class="w-16 h-16 mx-auto mb-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                </svg>
-                                <p class="text-lg mb-2">Drop your vegetable image here</p>
-                                <p class="text-sm text-gray-400">or click to browse</p>
-                                <input type="file" id="fileInput" accept="image/*" class="hidden">
-                            </div>
-                        </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-                        <!-- Preview -->
-                        <div id="previewContainer" class="hidden mt-6">
-                            <div class="relative rounded-xl overflow-hidden glow-border">
-                                <img id="previewImage" class="w-full h-auto">
-                                <button id="resetBtn" class="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            <!-- Analyze Button -->
-                            <button id="analyzeBtn" class="w-full mt-6 bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-600 hover:to-green-600 text-white font-bold py-4 px-8 rounded-xl transition transform hover:scale-105 glow-border">
-                                🔍 ANALYZE IMAGE
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Section -->
-                <div class="space-y-6">
-                    <div class="glow-border rounded-2xl p-6 bg-gray-900/50 backdrop-blur-sm">
-                        <h2 class="text-2xl font-bold mb-4 text-green-400">📊 Analysis Results</h2>
-                        
-                        <!-- Loading State -->
-                        <div id="loadingState" class="hidden text-center py-12">
-                            <div class="relative w-32 h-32 mx-auto mb-6">
-                                <div class="absolute inset-0 border-4 border-cyan-500 rounded-full animate-spin border-t-transparent"></div>
-                                <div class="absolute inset-4 border-4 border-green-500 rounded-full animate-spin border-t-transparent" style="animation-direction: reverse; animation-duration: 1s;"></div>
-                            </div>
-                            <p class="text-lg mb-2">Analyzing Image...</p>
-                            <div class="w-full bg-gray-700 rounded-full h-2 mt-4">
-                                <div id="progressBar" class="progress-bar rounded-full" style="width: 0%"></div>
-                            </div>
-                            <p id="progressText" class="text-sm text-gray-400 mt-2">0%</p>
-                        </div>
-
-                        <!-- Results Display -->
-                        <div id="resultsDisplay" class="hidden space-y-4">
-                            <div class="bg-gradient-to-r from-cyan-500/20 to-green-500/20 rounded-xl p-6 glow-border">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-sm text-gray-400">TOP PREDICTION</span>
-                                    <span class="text-2xl" id="topEmoji">🥬</span>
-                                </div>
-                                <h3 class="text-3xl font-bold glow-text mb-2" id="topLabel">-</h3>
-                                <div class="flex items-center space-x-2">
-                                    <div class="flex-1 bg-gray-700 rounded-full h-3">
-                                        <div id="topConfidence" class="progress-bar rounded-full h-3" style="width: 0%"></div>
-                                    </div>
-                                    <span class="text-xl font-bold" id="topPercent">0%</span>
-                                </div>
-                            </div>
-
-                            <div class="space-y-3" id="otherResults">
-                                <!-- Other results will be inserted here -->
-                            </div>
-                        </div>
-
-                        <!-- Empty State -->
-                        <div id="emptyState" class="text-center py-12 text-gray-500">
-                            <svg class="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                            <p class="text-lg">Upload an image to see results</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="text-center mt-12 text-gray-500 text-sm">
-            <p>Built with ❤️ and TensorFlow.js | © 2025 EizVall Neural Systems</p>
-        </div>
-    </div>
-
-    <script>
-        // State
-        let model = null;
-        let selectedFile = null;
-        let isModelReady = false;
-
-        // Vegetable Labels (from label.txt)
-        const LABELS = [
+        // ===== TENSORFLOW.JS CONFIG =====
+        const MODEL_PATH = './tfjs_models/model.json';
+        const MODEL_LABELS = [
             'Bean', 'Bitter_Gourd', 'Bottle_Gourd', 'Brinjal', 'Broccoli',
             'Cabbage', 'Capsicum', 'Carrot', 'Cauliflower', 'Cucumber',
             'Papaya', 'Potato', 'Pumpkin', 'Radish', 'Tomato'
         ];
+        const INPUT_SIZE = 128; // Model expects 128x128x3
 
-        // Emoji mapping
-        const EMOJI_MAP = {
-            'Bean': '🫘', 'Bitter_Gourd': '🥒', 'Bottle_Gourd': '🥒', 
-            'Brinjal': '🍆', 'Broccoli': '🥦', 'Cabbage': '🥬',
-            'Capsicum': '🫑', 'Carrot': '🥕', 'Cauliflower': '🥦',
-            'Cucumber': '🥒', 'Papaya': '🥭', 'Potato': '🥔',
-            'Pumpkin': '🎃', 'Radish': '🥕', 'Tomato': '🍅'
-        };
+        // Global model variable
+        let tfjsModel = null;
+        let isModelLoaded = false;
 
-        // DOM Elements
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewImage = document.getElementById('previewImage');
-        const resetBtn = document.getElementById('resetBtn');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const modelStatus = document.getElementById('modelStatus');
-        const loadingState = document.getElementById('loadingState');
-        const resultsDisplay = document.getElementById('resultsDisplay');
-        const emptyState = document.getElementById('emptyState');
-
-        // Load Model
-        async function loadModel() {
+        // ===== LOAD TENSORFLOW.JS MODEL =====
+        async function loadTensorFlowModel() {
             try {
-                console.log('Loading TensorFlow.js model...');
-                modelStatus.textContent = '⚡ Loading AI Model...';
+                console.log('🔄 Loading TensorFlow.js model...');
+                console.log('Current URL:', window.location.href);
+                console.log('Base URL:', window.location.origin);
                 
-                // Try multiple paths for model loading
-                const modelPaths = [
-                    './model/model.json',
-                    'model/model.json',
-                    'https://rivaldy-25-lval.github.io/vegetable-classifier-tfjs/model/model.json'
+                // Try multiple paths with full URLs
+                const baseUrl = window.location.origin;
+                const paths = [
+                    `${baseUrl}/tfjs_models/model.json`,
+                    './tfjs_models/model.json',
+                    'tfjs_models/model.json',
+                    '/tfjs_models/model.json'
                 ];
-                
-                let loadSuccess = false;
-                let lastError = null;
-                
-                for (const path of modelPaths) {
+
+                console.log('Will try these paths:', paths);
+
+                for (const path of paths) {
                     try {
-                        console.log(`Trying to load model from: ${path}`);
-                        model = await tf.loadLayersModel(path);
-                        console.log(`Successfully loaded model from: ${path}`);
-                        loadSuccess = true;
-                        break;
+                        console.log(`\n🔄 Attempting to load from: ${path}`);
+                        tfjsModel = await tf.loadLayersModel(path);
+                        console.log('✅ SUCCESS! Model loaded from:', path);
+                        console.log('Model summary:');
+                        tfjsModel.summary();
+                        
+                        // Warm up the model
+                        console.log('🔥 Warming up model...');
+                        const warmupTensor = tf.zeros([1, INPUT_SIZE, INPUT_SIZE, 3]);
+                        const warmupResult = tfjsModel.predict(warmupTensor);
+                        warmupResult.dispose();
+                        warmupTensor.dispose();
+                        console.log('✅ Model warmed up successfully');
+                        
+                        isModelLoaded = true;
+                        return true;
                     } catch (err) {
-                        console.warn(`Failed to load from ${path}:`, err.message);
-                        lastError = err;
+                        console.error(`❌ Failed from ${path}:`, err);
+                        console.error('Error details:', {
+                            name: err.name,
+                            message: err.message,
+                            stack: err.stack
+                        });
                     }
                 }
                 
-                if (!loadSuccess) {
-                    throw lastError || new Error('All model paths failed');
-                }
-                
-                // Warm up the model
-                console.log('Warming up model...');
-                const warmupTensor = tf.zeros([1, 128, 128, 3]);
-                model.predict(warmupTensor).dispose();
-                warmupTensor.dispose();
-                
-                isModelReady = true;
-                modelStatus.textContent = '✅ AI Model Ready!';
-                modelStatus.classList.remove('loading-pulse');
-                modelStatus.classList.add('text-green-400');
-                console.log('Model loaded and ready!');
+                throw new Error('All model loading attempts failed');
             } catch (error) {
-                console.error('Error loading model:', error);
-                console.error('Error details:', error.message);
-                modelStatus.textContent = '❌ Model Loading Failed - Check Console';
-                modelStatus.classList.add('text-red-400');
-                
-                // Show detailed error to user
-                alert(`Failed to load AI model.\n\nError: ${error.message}\n\nPlease check:\n1. Model files are uploaded to GitHub\n2. GitHub Pages is enabled\n3. Check browser console for details`);
+                console.error('❌ FATAL: Model loading error:', error);
+                alert(`Failed to load AI model:\n${error.message}\n\nPlease check Console (F12) for details`);
+                return false;
             }
         }
 
-        // Upload Zone Click
-        uploadZone.addEventListener('click', () => fileInput.click());
-
-        // Drag and Drop
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
-
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) handleFileSelect(files[0]);
-        });
-
-        // File Input Change
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
-        });
-
-        // Handle File Selection
-        function handleFileSelect(file) {
-            if (!file.type.startsWith('image/')) {
-                alert('Please select an image file!');
-                return;
+        // ===== PREDICT IMAGE =====
+        async function predictImage(imageElement) {
+            if (!tfjsModel || !isModelLoaded) {
+                throw new Error('Model not loaded yet');
             }
 
-            selectedFile = file;
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                previewImage.src = e.target.result;
-                document.getElementById('uploadContent').classList.add('hidden');
-                previewContainer.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                resultsDisplay.classList.add('hidden');
-            };
-            
-            reader.readAsDataURL(file);
-        }
+            return tf.tidy(() => {
+                // Convert image to tensor
+                let tensor = tf.browser.fromPixels(imageElement);
+                console.log('Original tensor shape:', tensor.shape);
 
-        // Reset
-        resetBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedFile = null;
-            fileInput.value = '';
-            previewContainer.classList.add('hidden');
-            document.getElementById('uploadContent').classList.remove('hidden');
-            resultsDisplay.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-        });
+                // Resize to 128x128
+                tensor = tf.image.resizeBilinear(tensor, [INPUT_SIZE, INPUT_SIZE]);
+                console.log('Resized tensor shape:', tensor.shape);
 
-        // Analyze Button
-        analyzeBtn.addEventListener('click', analyzeImage);
+                // Normalize to [0, 1]
+                tensor = tensor.div(255.0);
 
-        // Analyze Image
-        async function analyzeImage() {
-            if (!isModelReady) {
-                alert('Model is not ready yet. Please wait...');
-                return;
-            }
+                // Add batch dimension
+                tensor = tensor.expandDims(0);
+                console.log('Final tensor shape:', tensor.shape);
 
-            if (!selectedFile) {
-                alert('Please select an image first!');
-                return;
-            }
-
-            // Show loading
-            loadingState.classList.remove('hidden');
-            resultsDisplay.classList.add('hidden');
-            
-            // Progress animation
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress = Math.min(progress + 5, 90);
-                document.getElementById('progressBar').style.width = progress + '%';
-                document.getElementById('progressText').textContent = progress + '%';
-            }, 100);
-
-            try {
-                // Preprocess image
-                const imgElement = document.createElement('img');
-                imgElement.src = previewImage.src;
+                // Run prediction
+                const predictions = tfjsModel.predict(tensor);
+                const probabilities = predictions.dataSync();
                 
-                await new Promise((resolve) => {
-                    imgElement.onload = resolve;
-                });
+                console.log('Raw predictions:', probabilities);
 
-                // Convert to tensor
-                const tensor = tf.browser.fromPixels(imgElement)
-                    .resizeNearestNeighbor([128, 128])
-                    .toFloat()
-                    .div(tf.scalar(255.0))
-                    .expandDims();
+                // Map to labels with confidence
+                const results = MODEL_LABELS.map((label, index) => ({
+                    label: label,
+                    confidence: (probabilities[index] * 100).toFixed(2)
+                }));
 
-                // Predict
-                const predictions = await model.predict(tensor).data();
-                
-                // Process results
-                const results = Array.from(predictions)
-                    .map((score, i) => ({
-                        label: LABELS[i],
-                        confidence: score * 100,
-                        emoji: EMOJI_MAP[LABELS[i]] || '🥬'
-                    }))
-                    .sort((a, b) => b.confidence - a.confidence);
+                // Sort by confidence (highest first)
+                results.sort((a, b) => b.confidence - a.confidence);
 
-                // Clean up
-                tensor.dispose();
-                
-                // Complete progress
-                clearInterval(progressInterval);
-                document.getElementById('progressBar').style.width = '100%';
-                document.getElementById('progressText').textContent = '100%';
-
-                // Show results after brief delay
-                setTimeout(() => {
-                    displayResults(results);
-                    loadingState.classList.add('hidden');
-                    resultsDisplay.classList.remove('hidden');
-                }, 500);
-
-            } catch (error) {
-                console.error('Prediction error:', error);
-                clearInterval(progressInterval);
-                loadingState.classList.add('hidden');
-                alert('Error during analysis. Please try again.');
-            }
-        }
-
-        // Display Results
-        function displayResults(results) {
-            const top = results[0];
-            
-            // Top prediction
-            document.getElementById('topEmoji').textContent = top.emoji;
-            document.getElementById('topLabel').textContent = top.label.replace('_', ' ');
-            document.getElementById('topConfidence').style.width = top.confidence + '%';
-            document.getElementById('topPercent').textContent = top.confidence.toFixed(1) + '%';
-
-            // Other predictions (top 5)
-            const otherResults = document.getElementById('otherResults');
-            otherResults.innerHTML = '';
-            
-            results.slice(1, 5).forEach(result => {
-                const card = document.createElement('div');
-                card.className = 'result-card rounded-lg p-4';
-                card.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center space-x-3">
-                            <span class="text-2xl">${result.emoji}</span>
-                            <span class="font-semibold">${result.label.replace('_', ' ')}</span>
-                        </div>
-                        <span class="text-lg font-bold text-cyan-400">${result.confidence.toFixed(1)}%</span>
-                    </div>
-                    <div class="bg-gray-700 rounded-full h-2">
-                        <div class="progress-bar rounded-full h-2" style="width: ${result.confidence}%"></div>
-                    </div>
-                `;
-                otherResults.appendChild(card);
+                console.log('Top predictions:', results.slice(0, 5));
+                return results;
             });
         }
 
-        // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
-            loadModel();
-        });
+        // ===== ICONS =====
+        const IconWrapper = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Upload = ({ className }) => <IconWrapper className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconWrapper>;
+        const ImageIcon = ({ className }) => <IconWrapper className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></IconWrapper>;
+        const X = ({ className }) => <IconWrapper className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>;
+        const Cpu = ({ className }) => <IconWrapper className={className}><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></IconWrapper>;
+        const Scan = ({ className }) => <IconWrapper className={className}><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></IconWrapper>;
+        const CheckCircle2 = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></IconWrapper>;
+        const BarChart3 = ({ className }) => <IconWrapper className={className}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></IconWrapper>;
+        const Zap = ({ className }) => <IconWrapper className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>;
+
+        // ===== MAIN APP COMPONENT =====
+        function App() {
+            const [appState, setAppState] = useState('loading');
+            const [modelStatus, setModelStatus] = useState('⏳ Initializing...');
+            
+            // Dashboard state
+            const [selectedFile, setSelectedFile] = useState(null);
+            const [previewUrl, setPreviewUrl] = useState(null);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+            const [results, setResults] = useState(null);
+            const [scanProgress, setScanProgress] = useState(0);
+
+            // Load TensorFlow model on mount
+            useEffect(() => {
+                const initModel = async () => {
+                    setModelStatus('⚡ Loading AI Model...');
+                    const success = await loadTensorFlowModel();
+                    if (success) {
+                        setModelStatus('✅ AI Model Ready!');
+                    } else {
+                        setModelStatus('❌ Model Load Failed');
+                    }
+                };
+                initModel();
+            }, []);
+
+            const showGlobalBg = appState !== 'dashboard' && appState !== 'gallery' && appState !== 'flashback';
+
+            const handleIntroComplete = () => setAppState('title');
+            const handleStartClick = () => setAppState('flashback');
+            const handleFlashbackComplete = () => setAppState('message');
+            const handleMessageNext = () => setAppState('login');
+            const handleLoginSuccess = () => setAppState('gallery');
+            const handleEnterDashboard = () => setAppState('dashboard');
+
+            // ===== REAL ANALYSIS FUNCTION =====
+            const handleAnalyze = async () => {
+                if (!selectedFile || !isModelLoaded) {
+                    alert('Please wait for model to load or select an image first');
+                    return;
+                }
+
+                setIsAnalyzing(true);
+                setScanProgress(0);
+                setResults(null);
+
+                // Progress animation
+                const progressInterval = setInterval(() => {
+                    setScanProgress((prev) => {
+                        if (prev >= 90) {
+                            clearInterval(progressInterval);
+                            return 90;
+                        }
+                        return prev + 10;
+                    });
+                }, 100);
+
+                try {
+                    // Create image element from preview URL
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = previewUrl;
+                    });
+
+                    console.log('Image loaded, running prediction...');
+                    
+                    // Run TensorFlow.js prediction
+                    const predictions = await predictImage(img);
+                    
+                    clearInterval(progressInterval);
+                    setScanProgress(100);
+                    
+                    // Show top 5 results
+                    setResults(predictions.slice(0, 5));
+                    
+                    console.log('✅ Prediction complete');
+                } catch (error) {
+                    console.error('Prediction error:', error);
+                    alert(`Prediction failed: ${error.message}`);
+                    clearInterval(progressInterval);
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            };
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setSelectedFile(file);
+                    setPreviewUrl(URL.createObjectURL(file));
+                    setResults(null);
+                    setIsAnalyzing(false);
+                    setScanProgress(0);
+                }
+            };
+
+            const handleReset = () => {
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                setSelectedFile(null);
+                setPreviewUrl(null);
+                setResults(null);
+                setIsAnalyzing(false);
+                setScanProgress(0);
+            };
+
+            return (
+                <div className="min-h-screen font-sans text-white overflow-hidden relative">
+                <GlobalStyles />
+
+                {showGlobalBg && <MainBackgroundCanvas />}
+
+                {appState === 'loading' && <LoadingScreen onComplete={handleIntroComplete} />}
+                {appState === 'title' && <TitleScreen onStart={handleStartClick} modelStatus={modelStatus} />}
+                {appState === 'flashback' && <FlashbackScreen onComplete={handleFlashbackComplete} />}
+                {appState === 'message' && <MessageScreen onNext={handleMessageNext} />}
+                {appState === 'login' && <LoginScreen onSuccess={handleLoginSuccess} onCancel={() => setAppState('title')} />}
+                {appState === 'gallery' && <GalleryScreen onEnterSystem={handleEnterDashboard} />}
+
+                {appState === 'dashboard' && (
+                    <Dashboard 
+                        selectedFile={selectedFile}
+                        previewUrl={previewUrl}
+                        isAnalyzing={isAnalyzing}
+                        results={results}
+                        scanProgress={scanProgress}
+                        onFileChange={handleFileChange}
+                        onReset={handleReset}
+                        onAnalyze={handleAnalyze}
+                        modelStatus={modelStatus}
+                    />
+                )}
+                
+                {appState !== 'dashboard' && appState !== 'flashback' && (
+                    <div id="footer-logo" className="fixed bottom-8 right-8 text-2xl tracking-[0.3em] z-50 text-[#00d1ff] font-orbitron animate-pulse">
+                    Llvall
+                    </div>
+                )}
+                </div>
+            );
+        }
+
+        // ===== SUB COMPONENTS =====
+
+        const MainBackgroundCanvas = () => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let width = canvas.width = window.innerWidth;
+                let height = canvas.height = window.innerHeight;
+                let points = [];
+                let animationFrameId;
+
+                const init = () => {
+                    points = [];
+                    const pointsCount = Math.floor(width * height / 12000);
+                    for (let i = 0; i < pointsCount; i++) {
+                        points.push({ 
+                            x: Math.random() * width, 
+                            y: Math.random() * height, 
+                            vx: (Math.random() - 0.5) * 0.3, 
+                            vy: (Math.random() - 0.5) * 0.3, 
+                            radius: 1 + Math.random() * 2 
+                        });
+                    }
+                };
+
+                const draw = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    points.forEach(p1 => {
+                        p1.x += p1.vx; p1.y += p1.vy;
+                        if (p1.x < 0 || p1.x > width) p1.vx *= -1;
+                        if (p1.y < 0 || p1.y > height) p1.vy *= -1;
+                        ctx.beginPath(); 
+                        ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2); 
+                        ctx.fillStyle = 'rgba(0, 209, 255, 0.8)'; 
+                        ctx.fill();
+                        points.forEach(p2 => {
+                            const dx = p1.x - p2.x; 
+                            const dy = p1.y - p2.y; 
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 150) {
+                                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); 
+                                ctx.strokeStyle = `rgba(0, 209, 255, ${1 - dist / 150})`; ctx.lineWidth = 0.7; ctx.stroke();
+                            }
+                        });
+                    });
+                    animationFrameId = requestAnimationFrame(draw);
+                };
+                init(); draw();
+                const handleResize = () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; init(); };
+                window.addEventListener('resize', handleResize);
+                return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
+            }, []);
+            return <canvas ref={canvasRef} className="fixed inset-0 z-0 bg-[#020c1b]" />;
+        };
+
+        const LoadingScreen = ({ onComplete }) => {
+            const [percentage, setPercentage] = useState(0);
+            useEffect(() => {
+                const interval = setInterval(() => {
+                setPercentage(prev => {
+                    if (prev >= 100) {
+                        clearInterval(interval);
+                        setTimeout(onComplete, 500);
+                        return 100;
+                    }
+                    return prev + 1;
+                });
+                }, 30);
+                return () => clearInterval(interval);
+            }, [onComplete]);
+            
+            return (
+                <div className="fixed inset-0 z-50 bg-[#020c1b] flex items-center justify-center">
+                    <p className="text-5xl font-orbitron text-[#00d1ff]">
+                        {percentage}%
+                    </p>
+                </div>
+            );
+        };
+
+        const TitleScreen = ({ onStart, modelStatus }) => (
+            <div className="fixed inset-0 z-20 flex flex-col items-center justify-center p-8 animate-screen-in">
+                <div className="text-center mb-8 bg-black bg-opacity-25 p-4 rounded-lg border border-[#00d1ff]/10 shadow-[0_0_15px_rgba(0,209,255,0.1)]">
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-wider font-orbitron text-[#00d1ff] mb-2">
+                        EIZVALL4EVER
+                    </h1>
+                    <p className="text-md tracking-[0.2em] opacity-80 font-orbitron text-[#00d1ff]">
+                        — VEGETABLE CLASSIFIER —
+                    </p>
+                    <p className="text-xs tracking-widest opacity-60 font-orbitron text-[#00d1ff] mt-2">
+                        {modelStatus}
+                    </p>
+                </div>
+                
+                <button 
+                    onClick={onStart} 
+                    className="start-button font-orbitron flex items-center justify-center text-xl"
+                >
+                    START
+                </button>
+            </div>
+        );
+
+        const CyberRain = () => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let width = canvas.width = window.innerWidth;
+                let height = canvas.height = window.innerHeight;
+                const fontSize = 16;
+                const columns = Math.floor(width / fontSize);
+                const drops = Array(columns).fill(1);
+                const chars = "EIZVALL4EVER01"; 
+
+                const draw = () => {
+                    ctx.fillStyle = 'rgba(2, 12, 27, 0.1)'; 
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = '#00d1ff'; 
+                    ctx.font = '14px "Orbitron", monospace'; 
+                    for (let i = 0; i < drops.length; i++) {
+                        const text = chars[Math.floor(Math.random() * chars.length)];
+                        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                        if (drops[i] * fontSize > height && Math.random() > 0.98) { drops[i] = 0; }
+                        drops[i]++;
+                    }
+                    requestAnimationFrame(draw);
+                };
+                let animationFrameId = requestAnimationFrame(draw);
+                const handleResize = () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; };
+                window.addEventListener('resize', handleResize);
+                return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
+            }, []);
+            return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-0 bg-[#020c1b]" />;
+        };
+
+        const FlashbackScreen = ({ onComplete }) => {
+            const canvasRef = useRef(null);
+            const [text, setText] = useState('');
+            const [subText, setSubText] = useState('');
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let width = canvas.width = window.innerWidth;
+                let height = canvas.height = window.innerHeight;
+                let animationFrameId;
+                const colors = ['#6366f1', '#8b5cf6', '#06b6d4', '#ec4899', '#d946ef', '#ffffff']; 
+                const particles = Array.from({ length: 800 }, () => ({ 
+                    x: (Math.random() - 0.5) * width, 
+                    y: (Math.random() - 0.5) * height, 
+                    z: Math.random() * width, 
+                    pz: Math.random() * width, 
+                    color: colors[Math.floor(Math.random() * colors.length)] 
+                }));
+
+                const draw = () => {
+                    ctx.fillStyle = 'rgba(2, 12, 27, 0.3)';
+                    ctx.fillRect(0, 0, width, height); 
+                    ctx.save(); 
+                    ctx.translate(width / 2, height / 2);
+                    particles.forEach(p => {
+                        p.pz = p.z; p.z -= 20; 
+                        if(p.z <= 0) { p.x = (Math.random() - 0.5) * width; p.y = (Math.random() - 0.5) * height; p.z = width; p.pz = width; }
+                        const k = 128 / p.z; const px = p.x * k; const py = p.y * k; const prev_k = 128 / p.pz; const prev_px = p.x * prev_k; const prev_py = p.y * prev_k; 
+                        const size = (1 - p.z / width) * 3;
+                        ctx.beginPath(); ctx.moveTo(prev_px, prev_py); ctx.lineTo(px, py); ctx.lineWidth = size < 0.5 ? 0.5 : size; ctx.strokeStyle = p.color; ctx.stroke();
+                    });
+                    ctx.restore(); animationFrameId = requestAnimationFrame(draw);
+                }
+                draw();
+                
+                const sequence = [
+                    { main: "SYSTEM FRAGMENT", sub: "DETECTED..." },
+                    { main: "CREATED BY VALL", sub: "DIGITAL SIGNATURE VERIFIED" },
+                    { main: "ETERNAL DEDICATION", sub: "ENCRYPTED MEMORY" },
+                    { main: "FOR EIZ", sub: "ETERNAL PARTNER" },
+                    { main: "EIZVALL4EVER", sub: "ONLINE" }
+                ];
+
+                let index = 0;
+                const interval = setInterval(() => {
+                    if (index < sequence.length) {
+                        setText(sequence[index].main);
+                        setSubText(sequence[index].sub);
+                        index++;
+                    } else {
+                        clearInterval(interval);
+                        setTimeout(onComplete, 2000);
+                    }
+                }, 2500);
+
+                return () => { cancelAnimationFrame(animationFrameId); clearInterval(interval); };
+            }, [onComplete]);
+            
+            return (
+                <div className="screen active bg-black z-40 flex items-center justify-center h-screen w-full fixed inset-0">
+                    <canvas ref={canvasRef} className="absolute inset-0" />
+                    <div className="absolute flex flex-col items-center justify-center text-center px-4 z-50">
+                        <h2 className="text-xl md:text-3xl text-white font-light tracking-[0.5em] animate-fade-in-up font-orbitron mb-4" style={{ textShadow: '0 0 20px rgba(0, 209, 255, 0.7)' }}>
+                            {text}
+                        </h2>
+                        <p className="text-sm md:text-base text-cyan-400 font-vt323 tracking-[0.3em] animate-pulse">
+                            {subText}
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        const MessageScreen = ({ onNext }) => (
+            <div className="screen active w-full p-8 z-10 flex items-center justify-center h-screen animate-screen-in">
+                <div className="w-full max-w-2xl text-lg">
+                    <div className="w-full p-8 bg-black bg-opacity-60 border border-gray-700 rounded-md backdrop-blur-sm shadow-[0_0_20px_rgba(0,209,255,0.2)]">
+                        <p className="leading-relaxed font-sans text-[#00d1ff] space-y-2">
+                            <span className="block animate-fade-in delay-100">「劇場版ソードアート・オンライン-プログレッシブ-星なき夜のアリア」にて</span>
+                            <span className="block animate-fade-in delay-300">結城明日奈が《ソードアート・オンライン》を設定する際に決めた</span>
+                            <span className="block animate-fade-in delay-500">パスワードを入力してください。</span>
+                            <span className="block animate-fade-in delay-700">正解は本編にてご確認いただけます。</span>
+                        </p>
+                        <div className="flex justify-end mt-6">
+                            <button onClick={onNext} className="text-xl tracking-widest hover:text-white transition-colors duration-300 text-[#00d1ff] font-orbitron">Next &gt;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const LoginScreen = ({ onSuccess, onCancel }) => {
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const correctPasswords = ["adminlval", "iris"];
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (correctPasswords.includes(password)) { setError('ACCESS GRANTED...'); setTimeout(onSuccess, 1000); } 
+                else { setError('ACCESS DENIED. PASSWORD INCORRECT.'); setPassword(''); setTimeout(() => setError(''), 2000); }
+            };
+            return (
+                <div className="screen active p-8 flex flex-col items-center justify-center z-10 h-screen animate-screen-in">
+                <div className="w-full max-w-2xl p-8 border-2 border-[#00d1ff] bg-black bg-opacity-80 rounded-lg shadow-[0_0_30px_rgba(0,209,255,0.4)] flex flex-col backdrop-blur-md">
+                    <h2 className="text-2xl text-center mb-8 font-orbitron text-[#00d1ff]">Please create new user.</h2>
+                    <form onSubmit={handleSubmit} className="w-full">
+                    <div className="flex items-center mb-6">
+                        <label className="w-1/4 text-xl font-orbitron text-[#00d1ff]">User name</label>
+                        <div className="w-3/4">
+                        <input type="text" value="eiz" disabled className="w-full bg-transparent border-none text-2xl text-[#00d1ff] font-orbitron outline-none" />
+                        <div className="h-px bg-[#00d1ff] mt-1"></div>
+                        <p className="text-sm opacity-70 mt-1 text-[#00d1ff] font-vt323">01 - 011101 &lt; // Character Create user name</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center mb-8">
+                        <label className="w-1/4 text-xl font-orbitron text-[#00d1ff]">Password</label>
+                        <div className="w-3/4">
+                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-transparent border-none text-2xl text-[#00d1ff] font-orbitron outline-none focus:text-white transition-colors" autoFocus />
+                        <div className="h-px bg-[#00d1ff] mt-1"></div>
+                        <p className="text-sm opacity-70 mt-1 text-[#00d1ff] font-vt323">01 - 011101 &lt; // Character Create password</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-4">
+                        <button type="button" onClick={onCancel} className="text-2xl hover:text-white transition-colors duration-300 text-[#00d1ff] font-orbitron">&lt; Cancel</button>
+                        <p className={`text-sm h-4 font-orbitron ${error.includes('GRANTED') ? 'text-green-400' : 'text-red-500'}`}>{error}</p>
+                        <button type="submit" className="text-2xl hover:text-white transition-colors duration-300 text-[#00d1ff] font-orbitron">O K &gt;</button>
+                    </div>
+                    </form>
+                </div>
+                </div>
+            );
+        };
+
+        const GalleryScreen = ({ onEnterSystem }) => {
+            return (
+                <div className="screen active z-20 flex items-center justify-center h-screen w-full fixed inset-0 overflow-hidden">
+                    <CyberRain />
+                    
+                    <div className="relative z-50 flex flex-col items-center justify-center text-center bg-black/60 p-12 rounded-2xl border border-[#00d1ff]/50 backdrop-blur-md shadow-[0_0_50px_rgba(0,209,255,0.3)] animate-screen-in">
+                        <h2 className="text-4xl md:text-6xl text-white font-orbitron mb-6" style={{ textShadow: '0 0 20px #00d1ff' }}>
+                            Congratulations!!
+                        </h2>
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#00d1ff] to-transparent mb-6"></div>
+                        <p className="text-[#00d1ff] font-vt323 text-xl md:text-2xl mb-8 tracking-wider">
+                            ACCESS GRANTED. WELCOME TO THE NEURAL CORE.
+                        </p>
+                        <button 
+                            onClick={onEnterSystem}
+                            className="start-button font-orbitron flex items-center justify-center text-lg px-8 py-4 hover:scale-105 hover:shadow-[0_0_30px_#00d1ff] transition-all duration-300"
+                            style={{ width: 'auto', height: 'auto', borderRadius: '4px', border: '1px solid #00d1ff', background: 'rgba(0, 209, 255, 0.1)', color: '#fff' }}
+                        >
+                            OPEN EIZVALL
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = ({ selectedFile, previewUrl, isAnalyzing, results, scanProgress, onFileChange, onReset, onAnalyze, modelStatus }) => {
+            return (
+                <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden relative animate-fade-in z-50">
+                <div className="fixed inset-0 z-0 pointer-events-none">
+                    <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse"></div>
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-violet-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+                    <div className="absolute top-[40%] left-[40%] w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[100px]"></div>
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                </div>
+
+                <div className="relative z-10 container mx-auto px-4 py-8 max-w-5xl flex flex-col min-h-screen">
+                    <header className="flex justify-between items-center mb-12">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                        <Cpu className="text-white w-6 h-6" />
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 font-orbitron">
+                        EizVall<span className="text-indigo-400">4Ever</span>
+                        </h1>
+                    </div>
+                    <nav className="hidden md:flex gap-6 text-sm font-medium text-slate-400 font-orbitron">
+                        <span className="text-xs">{modelStatus}</span>
+                        <button className="px-4 py-2 rounded-full border border-slate-700 hover:bg-slate-800 transition-all text-white text-xs">
+                        TensorFlow.js
+                        </button>
+                    </nav>
+                    </header>
+
+                    <main className="flex-grow flex flex-col items-center justify-center w-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full items-start">
+                        <div className="flex flex-col gap-6 animate-fade-in-up">
+                        <div className="space-y-2">
+                            <h2 className="text-4xl md:text-5xl font-bold leading-tight font-orbitron">
+                            Klasifikasi Sayuran <br />
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+                                AI Powered
+                            </span>
+                            </h2>
+                            <p className="text-slate-400 text-lg max-w-md">
+                            Upload gambar sayuran, dan AI akan mengidentifikasi jenis sayuran dengan akurasi tinggi menggunakan Deep Learning.
+                            </p>
+                        </div>
+
+                        {!selectedFile ? (
+                            <div className="mt-4 group relative w-full aspect-[4/3] rounded-3xl border-2 border-dashed border-slate-700 bg-slate-900/50 hover:bg-slate-800/50 hover:border-indigo-500/50 transition-all duration-300 flex flex-col items-center justify-center overflow-hidden cursor-pointer backdrop-blur-sm">
+                            <input type="file" accept="image/*" onChange={onFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="z-10 flex flex-col items-center gap-4 p-6 text-center transition-transform group-hover:scale-105 duration-300">
+                                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center group-hover:bg-indigo-600 group-hover:shadow-lg group-hover:shadow-indigo-500/50 transition-all duration-300">
+                                <Upload className="w-8 h-8 text-slate-300 group-hover:text-white" />
+                                </div>
+                                <div>
+                                <p className="text-lg font-semibold text-white font-orbitron">Klik atau Seret Gambar</p>
+                                <p className="text-slate-400 text-sm">Mendukung JPG, PNG, WEBP</p>
+                                </div>
+                            </div>
+                            </div>
+                        ) : (
+                            <div className="mt-4 relative w-full aspect-[4/3] bg-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl group">
+                            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                            {isAnalyzing && (
+                                <div className="absolute inset-0 z-20 pointer-events-none">
+                                <div className="w-full h-1 bg-indigo-400 shadow-[0_0_15px_3px_rgba(99,102,241,0.8)] absolute top-0 left-0 animate-scan" style={{ animationDuration: '1.5s', animationIterationCount: 'infinite' }}></div>
+                                <div className="absolute inset-0 bg-indigo-500/10 mix-blend-overlay"></div>
+                                <div className="absolute top-4 right-4 font-mono text-xs text-indigo-300 bg-black/60 px-2 py-1 rounded backdrop-blur-md border border-indigo-500/30">PROCESSING... {Math.round(scanProgress)}%</div>
+                                </div>
+                            )}
+                            {!isAnalyzing && (
+                                <button onClick={onReset} className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-red-500/80 text-white rounded-full backdrop-blur-md transition-all border border-white/10 z-30"><X className="w-5 h-5" /></button>
+                            )}
+                            </div>
+                        )}
+
+                        {selectedFile && !results && !isAnalyzing && (
+                            <button 
+                                onClick={onAnalyze} 
+                                disabled={!isModelLoaded}
+                                className="w-full py-4 bg-white text-slate-950 rounded-2xl font-bold text-lg hover:bg-indigo-50 hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2 font-orbitron tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                            <Scan className="w-5 h-5" /> ANALYZE NOW
+                            </button>
+                        )}
+                        </div>
+
+                        <div className="flex flex-col justify-center h-full">
+                        {isAnalyzing ? (
+                            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl flex flex-col items-center justify-center min-h-[400px] text-center space-y-6">
+                            <div className="relative">
+                                <div className="w-20 h-20 rounded-full border-4 border-slate-700 border-t-indigo-500 animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center"><Zap className="w-8 h-8 text-indigo-400 animate-pulse" /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-semibold text-white font-orbitron">ANALYZING IMAGE...</h3>
+                                <p className="text-slate-400 text-sm">Running TensorFlow.js Neural Network</p>
+                            </div>
+                            <div className="w-full max-w-xs bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-200 ease-out" style={{ width: `${scanProgress}%` }}></div>
+                            </div>
+                            </div>
+                        ) : results ? (
+                            <div className="bg-slate-900/60 border border-slate-700/50 rounded-3xl p-8 backdrop-blur-xl animate-fade-in-right shadow-2xl shadow-black/50">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold flex items-center gap-2 font-orbitron"><BarChart3 className="text-indigo-400" /> RESULTS</h3>
+                                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full border border-green-500/30 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> COMPLETE</span>
+                            </div>
+                            <div className="space-y-6">
+                                {results.map((item, index) => (
+                                <div key={index} className="group">
+                                    <div className="flex justify-between text-sm mb-2">
+                                    <span className={`font-medium ${index === 0 ? 'text-white text-lg' : 'text-slate-300'}`}>
+                                        {index === 0 && '🥬 '}{item.label.replace('_', ' ')}
+                                    </span>
+                                    <span className="font-mono text-slate-400">{item.confidence}%</span>
+                                    </div>
+                                    <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden p-0.5">
+                                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${index === 0 ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-600'}`} style={{ width: `${item.confidence}%`, transitionDelay: `${index * 100}ms` }}></div>
+                                    </div>
+                                </div>
+                                ))}
+                            </div>
+                            <div className="mt-8 pt-6 border-t border-slate-700/50">
+                                <button onClick={onReset} className="w-full mt-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors border border-slate-600 font-orbitron tracking-wide">NEW ANALYSIS</button>
+                            </div>
+                            </div>
+                        ) : (
+                            <div className="hidden lg:flex flex-col justify-center items-start space-y-8 opacity-50">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-slate-800 rounded-2xl"><ImageIcon className="w-6 h-6 text-slate-400" /></div>
+                                <div><h4 className="text-white font-semibold">Upload Image</h4><p className="text-sm text-slate-400 max-w-xs">Pilih gambar sayuran dari perangkat Anda</p></div>
+                            </div>
+                            <div className="w-0.5 h-12 bg-slate-800 ml-6"></div>
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-slate-800 rounded-2xl"><Cpu className="w-6 h-6 text-slate-400" /></div>
+                                <div><h4 className="text-white font-semibold">AI Processing</h4><p className="text-sm text-slate-400 max-w-xs">TensorFlow.js menganalisis gambar secara real-time</p></div>
+                            </div>
+                            <div className="w-0.5 h-12 bg-slate-800 ml-6"></div>
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-slate-800 rounded-2xl"><BarChart3 className="w-6 h-6 text-slate-400" /></div>
+                                <div><h4 className="text-white font-semibold">Get Results</h4><p className="text-sm text-slate-400 max-w-xs">Lihat prediksi dengan tingkat kepercayaan</p></div>
+                            </div>
+                            </div>
+                        )}
+                        </div>
+                    </div>
+                    </main>
+                </div>
+                </div>
+            );
+        };
+
+        const GlobalStyles = () => (
+            <style>{`
+                :root {
+                    --primary-color: #00d1ff;
+                    --glow-color: rgba(0, 209, 255, 0.7);
+                    --button-gold-start: #d4af37;
+                    --button-gold-end: #b8860b;
+                    --button-border-gold: #f0e68c;
+                }
+
+                .font-orbitron { font-family: 'Orbitron', sans-serif; }
+                .font-vt323 { font-family: 'VT323', monospace; }
+
+                .start-button {
+                    width: 120px; height: 120px; border-radius: 50%;
+                    background: radial-gradient(ellipse at center, var(--button-gold-start) 0%, var(--button-gold-end) 100%);
+                    border: 2px solid var(--button-border-gold); color: #1a1a1a;
+                    font-weight: bold; letter-spacing: 2px;
+                    cursor: pointer; transition: all 0.3s ease;
+                    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+                }
+                .start-button:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+
+                @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+                .animate-scan { animation: scan 2s linear infinite; }
+                @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes fade-in-right { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+                .animate-fade-in-right { animation: fade-in-right 0.6s ease-out forwards; }
+                @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fade-in 1.5s ease-out forwards; }
+                .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards; }
+                @keyframes zoomIn { from { transform: scale(1.05); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                .animate-screen-in { animation: zoomIn 0.5s ease-in-out forwards; }
+            `}</style>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
     </script>
 </body>
 </html>

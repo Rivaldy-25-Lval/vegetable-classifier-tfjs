@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Model Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+</head>
+<body>
+    <h1>Testing TensorFlow.js Model Loading</h1>
+    <div id="status">Loading...</div>
+    <div id="log" style="font-family: monospace; white-space: pre-wrap; background: #000; color: #0f0; padding: 20px;"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        
+        function addLog(msg) {
+            console.log(msg);
+            log.textContent += msg + '\n';
+        }
+
+        async function testModel() {
+            try {
+                addLog('1. Checking TensorFlow.js...');
+                addLog('   TensorFlow.js version: ' + tf.version.tfjs);
+                addLog('   ✅ TensorFlow.js loaded!\n');
+
+                addLog('2. Current location:');
+                addLog('   URL: ' + window.location.href);
+                addLog('   Origin: ' + window.location.origin + '\n');
+
+                // Add cache buster to force reload
+                const cacheBuster = '?v=' + Date.now();
+                const paths = [
+                    'http://localhost:8000/tfjs_models/model.json' + cacheBuster,
+                    './tfjs_models/model.json' + cacheBuster,
+                    'tfjs_models/model.json' + cacheBuster
+                ];
+
+                addLog('3. Testing model paths (with cache buster):\n');
+                
+                for (let i = 0; i < paths.length; i++) {
+                    const path = paths[i];
+                    addLog(`   [${i+1}] Trying: ${path}`);
+                    
+                    try {
+                        // Test if file exists first
+                        const response = await fetch(path.replace('model.json', 'model.json'));
+                        addLog(`       HTTP Status: ${response.status} ${response.statusText}`);
+                        
+                        if (response.ok) {
+                            addLog('       Loading with tf.loadLayersModel...');
+                            const model = await tf.loadLayersModel(path);
+                            addLog('       ✅ SUCCESS! Model loaded!');
+                            addLog('       Model input shape: ' + JSON.stringify(model.inputs[0].shape));
+                            addLog('       Model output shape: ' + JSON.stringify(model.outputs[0].shape));
+                            
+                            status.textContent = '✅ Model loaded successfully from: ' + path;
+                            status.style.color = 'green';
+                            return;
+                        } else {
+                            addLog('       ❌ File not accessible\n');
+                        }
+                    } catch (err) {
+                        addLog('       ❌ Error: ' + err.message);
+                        addLog('       Details: ' + JSON.stringify({
+                            name: err.name,
+                            message: err.message
+                        }) + '\n');
+                    }
+                }
+
+                status.textContent = '❌ All paths failed';
+                status.style.color = 'red';
+                
+            } catch (error) {
+                addLog('\n❌ FATAL ERROR:');
+                addLog(error.toString());
+                addLog(error.stack);
+                status.textContent = '❌ Fatal error';
+                status.style.color = 'red';
+            }
+        }
+
+        // Start test when page loads
+        window.onload = () => {
+            addLog('=== TensorFlow.js Model Load Test ===\n');
+            testModel();
+        };
+    </script>
+</body>
+</html>
