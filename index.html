@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vegetable Classifier - Neural Interface</title>
+    
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            font-family: 'Orbitron', monospace;
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .glow-border {
+            box-shadow: 0 0 20px rgba(0, 209, 255, 0.5);
+            border: 2px solid #00d1ff;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 10px #00d1ff, 0 0 20px #00d1ff;
+        }
+        
+        .upload-zone {
+            border: 3px dashed #00d1ff;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+        
+        .upload-zone.dragover {
+            background: rgba(0, 209, 255, 0.1);
+            border-color: #00ff88;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        
+        .scan-line {
+            animation: scan 2s linear infinite;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, rgba(0, 209, 255, 0.1) 0%, rgba(0, 255, 136, 0.1) 100%);
+            border: 1px solid rgba(0, 209, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 209, 255, 0.3);
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #00d1ff, #00ff88);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen p-4 md:p-8">
+        <!-- Header -->
+        <div class="text-center mb-8 md:mb-12">
+            <h1 class="text-4xl md:text-6xl font-bold glow-text mb-4">
+                🥬 VEGETABLE CLASSIFIER
+            </h1>
+            <p class="text-lg md:text-xl text-cyan-300">
+                Powered by TensorFlow.js Neural Network
+            </p>
+            <div id="modelStatus" class="mt-4 text-sm loading-pulse">
+                ⚡ Initializing AI Model...
+            </div>
+        </div>
+
+        <!-- Main Container -->
+        <div class="max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- Upload Section -->
+                <div class="space-y-6">
+                    <div class="glow-border rounded-2xl p-6 bg-gray-900/50 backdrop-blur-sm">
+                        <h2 class="text-2xl font-bold mb-4 text-cyan-400">📤 Upload Image</h2>
+                        
+                        <!-- Upload Zone -->
+                        <div id="uploadZone" class="upload-zone rounded-xl p-12 text-center cursor-pointer">
+                            <div id="uploadContent">
+                                <svg class="w-16 h-16 mx-auto mb-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="text-lg mb-2">Drop your vegetable image here</p>
+                                <p class="text-sm text-gray-400">or click to browse</p>
+                                <input type="file" id="fileInput" accept="image/*" class="hidden">
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div id="previewContainer" class="hidden mt-6">
+                            <div class="relative rounded-xl overflow-hidden glow-border">
+                                <img id="previewImage" class="w-full h-auto">
+                                <button id="resetBtn" class="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Analyze Button -->
+                            <button id="analyzeBtn" class="w-full mt-6 bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-600 hover:to-green-600 text-white font-bold py-4 px-8 rounded-xl transition transform hover:scale-105 glow-border">
+                                🔍 ANALYZE IMAGE
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="space-y-6">
+                    <div class="glow-border rounded-2xl p-6 bg-gray-900/50 backdrop-blur-sm">
+                        <h2 class="text-2xl font-bold mb-4 text-green-400">📊 Analysis Results</h2>
+                        
+                        <!-- Loading State -->
+                        <div id="loadingState" class="hidden text-center py-12">
+                            <div class="relative w-32 h-32 mx-auto mb-6">
+                                <div class="absolute inset-0 border-4 border-cyan-500 rounded-full animate-spin border-t-transparent"></div>
+                                <div class="absolute inset-4 border-4 border-green-500 rounded-full animate-spin border-t-transparent" style="animation-direction: reverse; animation-duration: 1s;"></div>
+                            </div>
+                            <p class="text-lg mb-2">Analyzing Image...</p>
+                            <div class="w-full bg-gray-700 rounded-full h-2 mt-4">
+                                <div id="progressBar" class="progress-bar rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p id="progressText" class="text-sm text-gray-400 mt-2">0%</p>
+                        </div>
+
+                        <!-- Results Display -->
+                        <div id="resultsDisplay" class="hidden space-y-4">
+                            <div class="bg-gradient-to-r from-cyan-500/20 to-green-500/20 rounded-xl p-6 glow-border">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-gray-400">TOP PREDICTION</span>
+                                    <span class="text-2xl" id="topEmoji">🥬</span>
+                                </div>
+                                <h3 class="text-3xl font-bold glow-text mb-2" id="topLabel">-</h3>
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex-1 bg-gray-700 rounded-full h-3">
+                                        <div id="topConfidence" class="progress-bar rounded-full h-3" style="width: 0%"></div>
+                                    </div>
+                                    <span class="text-xl font-bold" id="topPercent">0%</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3" id="otherResults">
+                                <!-- Other results will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="emptyState" class="text-center py-12 text-gray-500">
+                            <svg class="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            <p class="text-lg">Upload an image to see results</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-12 text-gray-500 text-sm">
+            <p>Built with ❤️ and TensorFlow.js | © 2025 EizVall Neural Systems</p>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let model = null;
+        let selectedFile = null;
+        let isModelReady = false;
+
+        // Vegetable Labels (from label.txt)
+        const LABELS = [
+            'Bean', 'Bitter_Gourd', 'Bottle_Gourd', 'Brinjal', 'Broccoli',
+            'Cabbage', 'Capsicum', 'Carrot', 'Cauliflower', 'Cucumber',
+            'Papaya', 'Potato', 'Pumpkin', 'Radish', 'Tomato'
+        ];
+
+        // Emoji mapping
+        const EMOJI_MAP = {
+            'Bean': '🫘', 'Bitter_Gourd': '🥒', 'Bottle_Gourd': '🥒', 
+            'Brinjal': '🍆', 'Broccoli': '🥦', 'Cabbage': '🥬',
+            'Capsicum': '🫑', 'Carrot': '🥕', 'Cauliflower': '🥦',
+            'Cucumber': '🥒', 'Papaya': '🥭', 'Potato': '🥔',
+            'Pumpkin': '🎃', 'Radish': '🥕', 'Tomato': '🍅'
+        };
+
+        // DOM Elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const resetBtn = document.getElementById('resetBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const modelStatus = document.getElementById('modelStatus');
+        const loadingState = document.getElementById('loadingState');
+        const resultsDisplay = document.getElementById('resultsDisplay');
+        const emptyState = document.getElementById('emptyState');
+
+        // Load Model
+        async function loadModel() {
+            try {
+                console.log('Loading TensorFlow.js model...');
+                modelStatus.textContent = '⚡ Loading AI Model...';
+                
+                // Load model from local folder
+                model = await tf.loadLayersModel('./model/model.json');
+                
+                // Warm up the model
+                const warmupTensor = tf.zeros([1, 128, 128, 3]);
+                model.predict(warmupTensor).dispose();
+                warmupTensor.dispose();
+                
+                isModelReady = true;
+                modelStatus.textContent = '✅ AI Model Ready!';
+                modelStatus.classList.remove('loading-pulse');
+                modelStatus.classList.add('text-green-400');
+                console.log('Model loaded successfully!');
+            } catch (error) {
+                console.error('Error loading model:', error);
+                modelStatus.textContent = '❌ Model Loading Failed';
+                modelStatus.classList.add('text-red-400');
+                alert('Failed to load AI model. Please check console for details.');
+            }
+        }
+
+        // Upload Zone Click
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // Drag and Drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFileSelect(files[0]);
+        });
+
+        // File Input Change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
+        });
+
+        // Handle File Selection
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file!');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                document.getElementById('uploadContent').classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                resultsDisplay.classList.add('hidden');
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        // Reset
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            previewContainer.classList.add('hidden');
+            document.getElementById('uploadContent').classList.remove('hidden');
+            resultsDisplay.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+        });
+
+        // Analyze Button
+        analyzeBtn.addEventListener('click', analyzeImage);
+
+        // Analyze Image
+        async function analyzeImage() {
+            if (!isModelReady) {
+                alert('Model is not ready yet. Please wait...');
+                return;
+            }
+
+            if (!selectedFile) {
+                alert('Please select an image first!');
+                return;
+            }
+
+            // Show loading
+            loadingState.classList.remove('hidden');
+            resultsDisplay.classList.add('hidden');
+            
+            // Progress animation
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress = Math.min(progress + 5, 90);
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('progressText').textContent = progress + '%';
+            }, 100);
+
+            try {
+                // Preprocess image
+                const imgElement = document.createElement('img');
+                imgElement.src = previewImage.src;
+                
+                await new Promise((resolve) => {
+                    imgElement.onload = resolve;
+                });
+
+                // Convert to tensor
+                const tensor = tf.browser.fromPixels(imgElement)
+                    .resizeNearestNeighbor([128, 128])
+                    .toFloat()
+                    .div(tf.scalar(255.0))
+                    .expandDims();
+
+                // Predict
+                const predictions = await model.predict(tensor).data();
+                
+                // Process results
+                const results = Array.from(predictions)
+                    .map((score, i) => ({
+                        label: LABELS[i],
+                        confidence: score * 100,
+                        emoji: EMOJI_MAP[LABELS[i]] || '🥬'
+                    }))
+                    .sort((a, b) => b.confidence - a.confidence);
+
+                // Clean up
+                tensor.dispose();
+                
+                // Complete progress
+                clearInterval(progressInterval);
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressText').textContent = '100%';
+
+                // Show results after brief delay
+                setTimeout(() => {
+                    displayResults(results);
+                    loadingState.classList.add('hidden');
+                    resultsDisplay.classList.remove('hidden');
+                }, 500);
+
+            } catch (error) {
+                console.error('Prediction error:', error);
+                clearInterval(progressInterval);
+                loadingState.classList.add('hidden');
+                alert('Error during analysis. Please try again.');
+            }
+        }
+
+        // Display Results
+        function displayResults(results) {
+            const top = results[0];
+            
+            // Top prediction
+            document.getElementById('topEmoji').textContent = top.emoji;
+            document.getElementById('topLabel').textContent = top.label.replace('_', ' ');
+            document.getElementById('topConfidence').style.width = top.confidence + '%';
+            document.getElementById('topPercent').textContent = top.confidence.toFixed(1) + '%';
+
+            // Other predictions (top 5)
+            const otherResults = document.getElementById('otherResults');
+            otherResults.innerHTML = '';
+            
+            results.slice(1, 5).forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'result-card rounded-lg p-4';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">${result.emoji}</span>
+                            <span class="font-semibold">${result.label.replace('_', ' ')}</span>
+                        </div>
+                        <span class="text-lg font-bold text-cyan-400">${result.confidence.toFixed(1)}%</span>
+                    </div>
+                    <div class="bg-gray-700 rounded-full h-2">
+                        <div class="progress-bar rounded-full h-2" style="width: ${result.confidence}%"></div>
+                    </div>
+                `;
+                otherResults.appendChild(card);
+            });
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            loadModel();
+        });
+    </script>
+</body>
+</html>
