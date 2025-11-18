@@ -236,10 +236,35 @@
                 console.log('Loading TensorFlow.js model...');
                 modelStatus.textContent = '⚡ Loading AI Model...';
                 
-                // Load model from local folder
-                model = await tf.loadLayersModel('./model/model.json');
+                // Try multiple paths for model loading
+                const modelPaths = [
+                    './model/model.json',
+                    'model/model.json',
+                    'https://rivaldy-25-lval.github.io/vegetable-classifier-tfjs/model/model.json'
+                ];
+                
+                let loadSuccess = false;
+                let lastError = null;
+                
+                for (const path of modelPaths) {
+                    try {
+                        console.log(`Trying to load model from: ${path}`);
+                        model = await tf.loadLayersModel(path);
+                        console.log(`Successfully loaded model from: ${path}`);
+                        loadSuccess = true;
+                        break;
+                    } catch (err) {
+                        console.warn(`Failed to load from ${path}:`, err.message);
+                        lastError = err;
+                    }
+                }
+                
+                if (!loadSuccess) {
+                    throw lastError || new Error('All model paths failed');
+                }
                 
                 // Warm up the model
+                console.log('Warming up model...');
                 const warmupTensor = tf.zeros([1, 128, 128, 3]);
                 model.predict(warmupTensor).dispose();
                 warmupTensor.dispose();
@@ -248,12 +273,15 @@
                 modelStatus.textContent = '✅ AI Model Ready!';
                 modelStatus.classList.remove('loading-pulse');
                 modelStatus.classList.add('text-green-400');
-                console.log('Model loaded successfully!');
+                console.log('Model loaded and ready!');
             } catch (error) {
                 console.error('Error loading model:', error);
-                modelStatus.textContent = '❌ Model Loading Failed';
+                console.error('Error details:', error.message);
+                modelStatus.textContent = '❌ Model Loading Failed - Check Console';
                 modelStatus.classList.add('text-red-400');
-                alert('Failed to load AI model. Please check console for details.');
+                
+                // Show detailed error to user
+                alert(`Failed to load AI model.\n\nError: ${error.message}\n\nPlease check:\n1. Model files are uploaded to GitHub\n2. GitHub Pages is enabled\n3. Check browser console for details`);
             }
         }
 
